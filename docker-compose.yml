@@ -1,0 +1,16 @@
+﻿services:
+  backend:
+    image: yapi-backend:1.2
+    container_name: yapi
+    ports:
+      - 8080:8080
+  database:
+    image: postgres:14.12
+    restart: on-failure
+    container_name: y-database
+    environment:
+        POSTGRES_USER: y-dba
+        POSTGRES_PASSWORD: V3rySecret
+        POSTGRES_DB: yDB
+    ports:
+      - 5432:5432
