@@ -14,4 +14,6 @@ public class Tweet
     public DateTime CreatedAt { get; set; }
     
     public bool IsArchived { get; set; }
+    
+    public virtual AppUser Author { get; set; }
 }

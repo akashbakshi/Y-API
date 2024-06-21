@@ -12,5 +12,14 @@ public class YDbContext : IdentityDbContext<AppUser,IdentityRole,string>
 
     }
 
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        
+        
+        var userRole = new IdentityRole(){Name = "User", NormalizedName = "USER"};
+        builder.Entity<IdentityRole>().HasData(userRole);
+        base.OnModelCreating(builder);
+    }
+
     public DbSet<Tweet> Tweets { get; set; }
 }
