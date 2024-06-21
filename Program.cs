@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Identity;
 using YApi.Data;
+using YApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +18,10 @@ if (String.IsNullOrEmpty(connectionString))
 
 builder.Services.AddNpgsql<YDbContext>(connectionString);
 
+builder.Services.AddIdentity<AppUser, IdentityRole>()
+    .AddEntityFrameworkStores<YDbContext>()
+    .AddDefaultTokenProviders();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -26,6 +32,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseHttpsRedirection();
 

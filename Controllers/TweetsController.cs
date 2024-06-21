@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,8 @@ using YApi.Models;
 
 namespace YApi.Controllers;
 
+
+[Authorize]
 [ApiController]
 [Route("/api/v1/[controller]")]
 public class TweetsController: Controller

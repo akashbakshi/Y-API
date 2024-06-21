@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using YApi.Models;
 
 namespace YApi.Data;
 
-public class YDbContext : DbContext
+public class YDbContext : IdentityDbContext<AppUser,IdentityRole,string>
 {
     public YDbContext(DbContextOptions<YDbContext> options) : base(options)
     {
