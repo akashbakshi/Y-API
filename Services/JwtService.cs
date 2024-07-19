@@ -19,6 +19,13 @@ public class JwtService
         return new JwtSecurityTokenHandler().WriteToken(GetToken(claims));
     }
 
+    public List<Claim> GetTokenClaims(string token)
+    {
+        var securityToken = new JwtSecurityTokenHandler().ReadJwtToken(token);
+
+        return securityToken.Claims.ToList();
+    }
+
     public SecurityToken GetToken(List<Claim> claims)
     {
 

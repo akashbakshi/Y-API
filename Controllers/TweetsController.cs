@@ -1,10 +1,13 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using YApi.Data;
 using YApi.DTOs;
 using YApi.Models;
+using YApi.Services;
 
 namespace YApi.Controllers;
 
@@ -15,17 +18,30 @@ namespace YApi.Controllers;
 public class TweetsController: Controller
 {
     private YDbContext _dbContext;
-
-    public TweetsController(YDbContext dbContext)
+    private UserManager<AppUser> _userManager;
+    private JwtService _jwtService;
+    
+    public TweetsController(YDbContext dbContext, UserManager<AppUser> userManager, JwtService jwtService)
     {
         _dbContext = dbContext;
+        _userManager = userManager;
+        _jwtService = jwtService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAllTweets([FromQuery] int page)
     {
 
-        List<Tweet> allTweets = _dbContext.Tweets.Where(t=> !t.IsArchived).ToList();
+        List<Tweet> allTweets = _dbContext.Tweets.Where(t=> !t.IsArchived).Include(t=>t.Author).ToList();
+
+        foreach (var tweet in allTweets)
+        {
+            tweet.UserInfo = new UserDto()
+            {
+                
+                Username = tweet.Author.UserName, Email = tweet.Author.Email, DisplayName = tweet.Author.DisplayName
+            };
+        }
         return Ok(allTweets);
     }
 
@@ -45,7 +61,25 @@ public class TweetsController: Controller
     [HttpPost]
     public async Task<IActionResult> CreateNewTweet([FromBody] TweetDto tweetDto)
     {
-        var tweet = new Tweet { Content = tweetDto.Content, CreatedAt = DateTime.UtcNow };
+
+        var token = HttpContext.Request.Headers.Authorization.ToString();
+
+        token = token.Replace("Bearer ", "");
+        var tokenClaims = _jwtService.GetTokenClaims(token);
+
+        var username = tokenClaims.FirstOrDefault(t => t.Type == "unique_name");
+
+        if (username == null)
+            return BadRequest("No username found in token");
+        
+        AppUser? tweetAuthor = await _userManager.FindByNameAsync(username.Value);
+
+        if (tweetAuthor == null)
+        {
+            return BadRequest("Invalid username for tweet author");
+        }
+        
+        var tweet = new Tweet { Content = tweetDto.Content, CreatedAt = DateTime.UtcNow, Author = tweetAuthor};
 
         try
         {

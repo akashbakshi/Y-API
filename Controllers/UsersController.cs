@@ -102,7 +102,6 @@ public class UsersController: Controller
 
         var userRoles = await _userManager.GetRolesAsync(appUser);
         
-        //TODO: Generate JWT token
 
         List<Claim> tokenClaims = new List<Claim>();
 

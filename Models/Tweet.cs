@@ -1,4 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
+using YApi.DTOs;
 
 namespace YApi.Models;
 
@@ -15,5 +18,9 @@ public class Tweet
     
     public bool IsArchived { get; set; }
     
+    [JsonIgnore]
     public virtual AppUser Author { get; set; }
+    
+    [NotMapped]
+    public UserDto UserInfo { get; set ; }
 }

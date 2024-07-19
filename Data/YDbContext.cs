@@ -9,7 +9,6 @@ public class YDbContext : IdentityDbContext<AppUser,IdentityRole,string>
 {
     public YDbContext(DbContextOptions<YDbContext> options) : base(options)
     {
-
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
