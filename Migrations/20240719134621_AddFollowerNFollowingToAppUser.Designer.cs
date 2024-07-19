@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YApi.Data;
@@ -11,9 +12,11 @@ using YApi.Data;
 namespace YApi.Migrations
 {
     [DbContext(typeof(YDbContext))]
-    partial class YDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240719134621_AddFollowerNFollowingToAppUser")]
+    partial class AddFollowerNFollowingToAppUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
