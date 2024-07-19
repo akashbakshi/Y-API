@@ -28,11 +28,38 @@ public class TweetsController: Controller
         _jwtService = jwtService;
     }
 
+    private string? FetchUsernameFromRequestHeader(string token)
+    {
+        token = token.Replace("Bearer ", "");
+        var tokenClaims = _jwtService.GetTokenClaims(token);
+
+        return tokenClaims.FirstOrDefault(t => t.Type == "unique_name")?.Value;
+    }
+    
     [HttpGet]
     public async Task<IActionResult> GetAllTweets([FromQuery] int page)
     {
+        
+        //1. Get the current user's Appuser object so we can access their following list
+        //2. Cross reference all the usernames in the following list and fetch only tweets by them
 
-        List<Tweet> allTweets = _dbContext.Tweets.Where(t=> !t.IsArchived).Include(t=>t.Author).ToList();
+        string? username = FetchUsernameFromRequestHeader(HttpContext.Request.Headers.Authorization.ToString());
+
+        if (String.IsNullOrEmpty(username))
+            return BadRequest("Could not fetch username from token");
+
+        AppUser? user = _dbContext.Users
+            .Include(f => f.Following)
+            .FirstOrDefault(u => u.UserName == username);
+
+        if (user is null)
+            return BadRequest($"User {username} does not exist");
+        
+
+        List<Tweet> allTweets = _dbContext.Tweets
+            .Include(t=>t.Author)
+            .Where(t=> !t.IsArchived && user.Following.Select(f=>f.UserName).Contains(t.Author.UserName))
+            .ToList();
 
         foreach (var tweet in allTweets)
         {
@@ -62,17 +89,12 @@ public class TweetsController: Controller
     public async Task<IActionResult> CreateNewTweet([FromBody] TweetDto tweetDto)
     {
 
-        var token = HttpContext.Request.Headers.Authorization.ToString();
-
-        token = token.Replace("Bearer ", "");
-        var tokenClaims = _jwtService.GetTokenClaims(token);
-
-        var username = tokenClaims.FirstOrDefault(t => t.Type == "unique_name");
-
-        if (username == null)
-            return BadRequest("No username found in token");
+        string? username = FetchUsernameFromRequestHeader(HttpContext.Request.Headers.Authorization.ToString());
         
-        AppUser? tweetAuthor = await _userManager.FindByNameAsync(username.Value);
+        if(String.IsNullOrEmpty(username)) 
+            return StatusCode(500,"Failed to find Bearer token or username in Header");
+
+        AppUser? tweetAuthor = await _userManager.FindByNameAsync(username);
 
         if (tweetAuthor == null)
         {
