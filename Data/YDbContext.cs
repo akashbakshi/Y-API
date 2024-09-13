@@ -17,6 +17,16 @@ public class YDbContext : IdentityDbContext<AppUser,IdentityRole,string>
         
         var userRole = new IdentityRole(){Name = "User", NormalizedName = "USER"};
         builder.Entity<IdentityRole>().HasData(userRole);
+
+        builder.Entity<Tweet>()
+            .HasOne(t => t.Author)
+            .WithMany()
+            .HasForeignKey("AuthorId");
+
+        builder.Entity<Tweet>()
+            .HasMany(t => t.Likes)
+            .WithMany(u => u.LikedTweets);
+        
         base.OnModelCreating(builder);
     }
 

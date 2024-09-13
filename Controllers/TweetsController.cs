@@ -20,12 +20,15 @@ public class TweetsController: Controller
     private YDbContext _dbContext;
     private UserManager<AppUser> _userManager;
     private JwtService _jwtService;
+    private ILogger<TweetsController> _logger;
     
-    public TweetsController(YDbContext dbContext, UserManager<AppUser> userManager, JwtService jwtService)
+    public TweetsController(YDbContext dbContext, UserManager<AppUser> userManager, JwtService jwtService, ILogger<TweetsController> logger)
     {
         _dbContext = dbContext;
         _userManager = userManager;
         _jwtService = jwtService;
+        _logger = logger;
+        
     }
 
     private string? FetchUsernameFromRequestHeader(string token)
@@ -58,6 +61,7 @@ public class TweetsController: Controller
 
         List<Tweet> allTweets = _dbContext.Tweets
             .Include(t=>t.Author)
+            .Include(t=>t.Likes)
             .Where(t=> !t.IsArchived && user.Following.Select(f=>f.UserName).Contains(t.Author.UserName))
             .ToList();
 
@@ -68,6 +72,8 @@ public class TweetsController: Controller
                 
                 Username = tweet.Author.UserName, Email = tweet.Author.Email, DisplayName = tweet.Author.DisplayName
             };
+                
+            tweet.LikesByUsername.AddRange(tweet.Likes.Select(l => l.UserName)!);
         }
         return Ok(allTweets);
     }
@@ -82,6 +88,7 @@ public class TweetsController: Controller
             return BadRequest($"Cannot find a tweet with the provided ID: {id}");
 
 
+        tweetToFind.LikesByUsername.AddRange(tweetToFind.Likes.Select(l => l.UserName)!);
         return Ok(tweetToFind);
     }
 
@@ -142,6 +149,54 @@ public class TweetsController: Controller
             Console.WriteLine(e.Message);
             Console.WriteLine(e.StackTrace);
             return StatusCode(500, $"Unable to edit tweet: {id}");
+        }
+    }
+
+    [HttpPatch("like/{id}")]
+    public async Task<IActionResult> TriggerLikeTweet(long id)
+    {
+        
+        string? username = FetchUsernameFromRequestHeader(HttpContext.Request.Headers.Authorization.ToString()); // get the username from our JWT token
+
+        if (String.IsNullOrEmpty(username))
+            return BadRequest("Invalid username in token");
+        
+        try
+        {
+            Tweet? tweetToLike = await _dbContext.Tweets
+                .Include(t=>t.Likes)
+                .FirstOrDefaultAsync(t => t.Id == id); // find the tweet we're going to 'like'
+
+            if (tweetToLike is null)
+                return BadRequest($"Cannot find a tweet with the provided ID: {id}");
+            
+            //fetch the user object
+            AppUser? user = await _userManager.FindByNameAsync(username);
+
+            if (user is null)
+                return BadRequest("User does not exist");
+            
+            
+            
+            //check if the user has already 'liked' the tweet, if so then 'unlike' it
+            if (tweetToLike.Likes.FirstOrDefault(l=>l.UserName == username) != null)
+                tweetToLike.Likes.Remove(user);
+            else
+                tweetToLike.Likes.Add(user);
+
+            _dbContext.Update(tweetToLike);
+            await _dbContext.SaveChangesAsync();
+            
+            return Ok();
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("Failed to like/unlike tweet");
+            _logger.LogError(e.Message);
+            _logger.LogError(e.StackTrace);
+            
+            
+            return StatusCode(500, "Could not like/unline tweet");
         }
     }
 

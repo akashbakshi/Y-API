@@ -55,6 +55,19 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddSingleton<JwtService>();
 
 
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("YApiCorsPolicy", policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders("access-token");
+    });
+});
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -63,6 +76,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors("YApiCorsPolicy");
 
 app.MapControllers();
 

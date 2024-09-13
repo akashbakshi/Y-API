@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YApi.Data;
@@ -11,9 +12,11 @@ using YApi.Data;
 namespace YApi.Migrations
 {
     [DbContext(typeof(YDbContext))]
-    partial class YDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240913152337_TweetLikeSchemaFix")]
+    partial class TweetLikeSchemaFix
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -35,21 +38,6 @@ namespace YApi.Migrations
                     b.HasIndex("FollowingId");
 
                     b.ToTable("AppUserAppUser");
-                });
-
-            modelBuilder.Entity("AppUserTweet", b =>
-                {
-                    b.Property<long>("LikedTweetsId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("LikesId")
-                        .HasColumnType("text");
-
-                    b.HasKey("LikedTweetsId", "LikesId");
-
-                    b.HasIndex("LikesId");
-
-                    b.ToTable("AppUserTweet");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -80,7 +68,7 @@ namespace YApi.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "a15d4c89-c7ea-4403-a347-b25dece58e27",
+                            Id = "93153282-5bc1-4c6a-9031-059b7ce0843f",
                             Name = "User",
                             NormalizedName = "USER"
                         });
@@ -241,6 +229,9 @@ namespace YApi.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
+                    b.Property<long?>("TweetId")
+                        .HasColumnType("bigint");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -257,6 +248,8 @@ namespace YApi.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
+                    b.HasIndex("TweetId");
+
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
@@ -269,7 +262,6 @@ namespace YApi.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("AuthorId")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Content")
@@ -300,21 +292,6 @@ namespace YApi.Migrations
                     b.HasOne("YApi.Models.AppUser", null)
                         .WithMany()
                         .HasForeignKey("FollowingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("AppUserTweet", b =>
-                {
-                    b.HasOne("YApi.Models.Tweet", null)
-                        .WithMany()
-                        .HasForeignKey("LikedTweetsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("YApi.Models.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("LikesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -370,15 +347,25 @@ namespace YApi.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("YApi.Models.AppUser", b =>
+                {
+                    b.HasOne("YApi.Models.Tweet", null)
+                        .WithMany("Likes")
+                        .HasForeignKey("TweetId");
+                });
+
             modelBuilder.Entity("YApi.Models.Tweet", b =>
                 {
                     b.HasOne("YApi.Models.AppUser", "Author")
                         .WithMany()
-                        .HasForeignKey("AuthorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("AuthorId");
 
                     b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("YApi.Models.Tweet", b =>
+                {
+                    b.Navigation("Likes");
                 });
 #pragma warning restore 612, 618
         }
