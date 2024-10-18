@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YApi.Data;
@@ -11,9 +12,11 @@ using YApi.Data;
 namespace YApi.Migrations
 {
     [DbContext(typeof(YDbContext))]
-    partial class YDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241018141157_Comment-Model-Addition")]
+    partial class CommentModelAddition
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -80,7 +83,7 @@ namespace YApi.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "0ac2efbc-6382-4258-88c7-8087f54af9e9",
+                            Id = "6ce5a58a-de5e-4f4e-b7ae-0bcc08330dda",
                             Name = "User",
                             NormalizedName = "USER"
                         });
@@ -272,6 +275,7 @@ namespace YApi.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CommentedById")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Content")
@@ -287,7 +291,7 @@ namespace YApi.Migrations
 
                     b.HasIndex("TweetId");
 
-                    b.ToTable("Comments");
+                    b.ToTable("Comment");
                 });
 
             modelBuilder.Entity("YApi.Models.Tweet", b =>
@@ -404,7 +408,9 @@ namespace YApi.Migrations
                 {
                     b.HasOne("YApi.Models.AppUser", "CommentedBy")
                         .WithMany()
-                        .HasForeignKey("CommentedById");
+                        .HasForeignKey("CommentedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("YApi.Models.Tweet", null)
                         .WithMany("Comments")

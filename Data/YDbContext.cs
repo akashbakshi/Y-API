@@ -31,4 +31,6 @@ public class YDbContext : IdentityDbContext<AppUser,IdentityRole,string>
     }
 
     public DbSet<Tweet> Tweets { get; set; }
+    
+    public DbSet<Comment> Comments { get; set; }
 }

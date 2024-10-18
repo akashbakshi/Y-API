@@ -22,6 +22,7 @@ if (String.IsNullOrEmpty(connectionString))
     Console.WriteLine($"No connection string found for '{builder.Environment.EnvironmentName}'");
 }
 
+
 builder.Services.AddNpgsql<YDbContext>(connectionString);
 
 builder.Services.AddIdentity<AppUser, IdentityRole>()
@@ -85,5 +86,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseHttpsRedirection();
+
+string version = "V0.5";
+Console.WriteLine($"YApi Service version {version} running...");
 
 app.Run();

@@ -62,6 +62,7 @@ public class TweetsController: Controller
         List<Tweet> allTweets = _dbContext.Tweets
             .Include(t=>t.Author)
             .Include(t=>t.Likes)
+            .Include(t=>t.Comments)
             .Where(t=> !t.IsArchived && user.Following.Select(f=>f.UserName).Contains(t.Author.UserName))
             .ToList();
 
@@ -74,7 +75,10 @@ public class TweetsController: Controller
             };
                 
             tweet.LikesByUsername.AddRange(tweet.Likes.Select(l => l.UserName)!);
+            tweet.Comments = tweet.Comments.OrderByDescending(c => c.CommentedAt).ToList();
+
         }
+        
         return Ok(allTweets);
     }
 
@@ -92,6 +96,9 @@ public class TweetsController: Controller
         return Ok(tweetToFind);
     }
 
+    //Eager loading  - Fetches all relations and models/tables associated to a model anytime it's fetched by default
+        
+    //Lazy loading - Doesn't fetch any relation models/tables by default UNLESS the user tells to 
     [HttpPost]
     public async Task<IActionResult> CreateNewTweet([FromBody] TweetDto tweetDto)
     {
@@ -221,6 +228,62 @@ public class TweetsController: Controller
             Console.WriteLine(e.Message);
             Console.WriteLine(e.StackTrace);
             return StatusCode(500, $"Unable to archive tweet: {id}");
+        }
+    }
+
+    [HttpPost("comments")]
+    public async Task<IActionResult> AddCommentToTweet([FromBody] AddCommentDto addCommentDto)
+    {
+
+        try
+        {
+            
+            //Fetch the current app user
+            string username = FetchUsernameFromRequestHeader(HttpContext.Request.Headers.Authorization.ToString());
+
+            if (String.IsNullOrEmpty(username))
+            {
+                return BadRequest("Invalid username in token");
+            }
+            
+            AppUser? commentUser = await _userManager.FindByNameAsync(username);
+
+            if (commentUser == null)
+            {
+                return BadRequest("User does not exist in system");
+            }
+            
+            // Fetch the tweet model
+
+            Tweet? tweet = await _dbContext.Tweets.FirstOrDefaultAsync(t => t.Id == addCommentDto.tweetId);
+
+
+            if (tweet == null)
+            {
+                return BadRequest($"Failed to find tweet with ID {addCommentDto.tweetId}");
+            }
+            
+            Comment newComment = new Comment()
+            {
+                CommentedAt = DateTime.UtcNow,
+                Content = addCommentDto.content,
+                CommentedBy = commentUser,
+            };
+            
+            tweet.Comments.Add(newComment);
+
+            _dbContext.Comments.Add(newComment);
+            
+            _dbContext.Update(tweet);
+            await _dbContext.SaveChangesAsync();
+            
+            return Created($"/api/v1/tweets/comments/{newComment.Id}",newComment);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex.Message);
+            _logger.LogError(ex.StackTrace);
+            return StatusCode(500, $"Failed to add comment to tweet {addCommentDto.tweetId}");
         }
     }
 }

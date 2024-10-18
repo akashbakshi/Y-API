@@ -24,6 +24,7 @@ public class Tweet
     [NotMapped]
     public UserDto UserInfo { get; set ; }
     
+    public virtual List<Comment> Comments { get; set; } = new List<Comment>();
     
     [JsonIgnore]
     public virtual List<AppUser> Likes { get; set; } = new List<AppUser>();
