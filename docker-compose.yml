@@ -1,7 +1,6 @@
 ﻿services:
   backend:
-    image: yapi-backend:1.2
-    container_name: yapi
+    image: yapi-backend:latest
     ports:
       - 8080:8080
   database:

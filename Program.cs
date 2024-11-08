@@ -87,7 +87,7 @@ app.UseAuthorization();
 
 app.UseHttpsRedirection();
 
-string version = "V0.5";
+string version = "V0.6";
 Console.WriteLine($"YApi Service version {version} running...");
 
 app.Run();
