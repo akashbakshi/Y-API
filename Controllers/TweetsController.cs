@@ -12,7 +12,6 @@ using YApi.Services;
 namespace YApi.Controllers;
 
 
-[Authorize]
 [ApiController]
 [Route("/api/v1/[controller]")]
 public class TweetsController: Controller
@@ -34,29 +33,27 @@ public class TweetsController: Controller
     private string? FetchUsernameFromRequestHeader(string token)
     {
         token = token.Replace("Bearer ", "");
+        
+        
         var tokenClaims = _jwtService.GetTokenClaims(token);
 
         return tokenClaims.FirstOrDefault(t => t.Type == "unique_name")?.Value;
     }
-    
-    [HttpGet]
-    public async Task<IActionResult> GetAllTweets([FromQuery] int page)
-    {
-        
-        //1. Get the current user's Appuser object so we can access their following list
-        //2. Cross reference all the usernames in the following list and fetch only tweets by them
 
-        string? username = FetchUsernameFromRequestHeader(HttpContext.Request.Headers.Authorization.ToString());
+    private List<Tweet> GetUserTweets(string token)
+    {
+        string? username = FetchUsernameFromRequestHeader(token);
 
         if (String.IsNullOrEmpty(username))
-            return BadRequest("Could not fetch username from token");
-
+            throw new MissingMemberException("Could not fetch username from token");
+     
+        
         AppUser? user = _dbContext.Users
             .Include(f => f.Following)
             .FirstOrDefault(u => u.UserName == username);
-
+        
         if (user is null)
-            return BadRequest($"User {username} does not exist");
+            throw new NullReferenceException($"User {username} does not exist");
         
 
         List<Tweet> allTweets = _dbContext.Tweets
@@ -66,20 +63,84 @@ public class TweetsController: Controller
             .Where(t=> !t.IsArchived && user.Following.Select(f=>f.UserName).Contains(t.Author.UserName))
             .ToList();
 
-        foreach (var tweet in allTweets)
-        {
-            tweet.UserInfo = new UserDto()
-            {
-                
-                Username = tweet.Author.UserName, Email = tweet.Author.Email, DisplayName = tweet.Author.DisplayName
-            };
-                
-            tweet.LikesByUsername.AddRange(tweet.Likes.Select(l => l.UserName)!);
-            tweet.Comments = tweet.Comments.OrderByDescending(c => c.CommentedAt).ToList();
 
-        }
+        return allTweets;
+    }
+    
+    private List<Tweet> GetAnonTweets()
+    {
+        List<Tweet> anonTweets = _dbContext.Tweets
+            .Include(t => t.Author)
+            .Include(t => t.Likes)
+            .Include(t => t.Comments)
+            .Where(t => !t.IsArchived).ToList();
+
+        return anonTweets;
+    }
+    
+    [HttpGet]
+    public async Task<IActionResult> GetAllTweets([FromQuery] int page)
+    {
         
-        return Ok(allTweets);
+        //1. Get the current user's Appuser object so we can access their following list
+        //2. Cross reference all the usernames in the following list and fetch only tweets by them
+
+        string token = HttpContext.Request.Headers.Authorization.ToString();
+
+        List<Tweet> allTweets = new List<Tweet>();
+
+        try
+        {
+            
+            if (!String.IsNullOrEmpty(token))
+            {
+                allTweets = GetUserTweets(token);
+            }
+            else
+            {
+                allTweets = GetAnonTweets();
+            }
+            
+
+
+
+            foreach (var tweet in allTweets)
+            {
+                tweet.UserInfo = new UserDto()
+                {
+
+                    Username = tweet.Author.UserName, Email = tweet.Author.Email, DisplayName = tweet.Author.DisplayName
+                };
+
+                tweet.LikesByUsername.AddRange(tweet.Likes.Select(l => l.UserName)!);
+                tweet.Comments = tweet.Comments.OrderByDescending(c => c.CommentedAt).ToList();
+
+            }
+
+            return Ok(allTweets);
+        }
+        catch (MissingMemberException missingEx)
+        {
+
+            _logger.LogError(missingEx.Message);
+            _logger.LogError(missingEx.StackTrace);
+            return BadRequest(missingEx.Message);
+        }
+        catch (NullReferenceException nullEx)
+        {
+            
+            _logger.LogError(nullEx.Message);
+            _logger.LogError(nullEx.StackTrace);
+            return BadRequest(nullEx.Message);
+        }
+        catch (Exception ex)
+        {
+
+            _logger.LogError(ex.Message);
+            _logger.LogError(ex.StackTrace);
+            return StatusCode(500, "Could not fetch tweets. Please try again!");
+        }
+       
     }
 
 
@@ -99,6 +160,8 @@ public class TweetsController: Controller
     //Eager loading  - Fetches all relations and models/tables associated to a model anytime it's fetched by default
         
     //Lazy loading - Doesn't fetch any relation models/tables by default UNLESS the user tells to 
+    
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> CreateNewTweet([FromBody] TweetDto tweetDto)
     {
@@ -132,6 +195,7 @@ public class TweetsController: Controller
         
     }
 
+    [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> EditTweet(long id, [FromBody] TweetDto editedTweet)
     {
@@ -159,6 +223,7 @@ public class TweetsController: Controller
         }
     }
 
+    [Authorize]
     [HttpPatch("like/{id}")]
     public async Task<IActionResult> TriggerLikeTweet(long id)
     {
@@ -167,33 +232,33 @@ public class TweetsController: Controller
 
         if (String.IsNullOrEmpty(username))
             return BadRequest("Invalid username in token");
-        
+
         try
         {
             Tweet? tweetToLike = await _dbContext.Tweets
-                .Include(t=>t.Likes)
+                .Include(t => t.Likes)
                 .FirstOrDefaultAsync(t => t.Id == id); // find the tweet we're going to 'like'
 
             if (tweetToLike is null)
                 return BadRequest($"Cannot find a tweet with the provided ID: {id}");
-            
+
             //fetch the user object
             AppUser? user = await _userManager.FindByNameAsync(username);
 
             if (user is null)
                 return BadRequest("User does not exist");
-            
-            
-            
+
+
+
             //check if the user has already 'liked' the tweet, if so then 'unlike' it
-            if (tweetToLike.Likes.FirstOrDefault(l=>l.UserName == username) != null)
+            if (tweetToLike.Likes.FirstOrDefault(l => l.UserName == username) != null)
                 tweetToLike.Likes.Remove(user);
             else
                 tweetToLike.Likes.Add(user);
 
             _dbContext.Update(tweetToLike);
             await _dbContext.SaveChangesAsync();
-            
+
             return Ok();
         }
         catch (Exception e)
@@ -207,6 +272,7 @@ public class TweetsController: Controller
         }
     }
 
+    [Authorize]
     [HttpDelete("{id}")]
     public async Task<IActionResult> HideTweet(long id)
     {
@@ -231,6 +297,7 @@ public class TweetsController: Controller
         }
     }
 
+    [Authorize]
     [HttpPost("comments")]
     public async Task<IActionResult> AddCommentToTweet([FromBody] AddCommentDto addCommentDto)
     {
